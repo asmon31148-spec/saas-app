@@ -1,0 +1,261 @@
+{
+  "entities": {
+    "SaasPlan": {
+      "title": "SaasPlan",
+      "description": "A B2B SaaS subscription pricing tier defined by the workspace owner.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated workspace owner UID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the SaaS subscription plan (2-60 chars)."
+        },
+        "tierCode": {
+          "type": "string",
+          "enum": ["STARTER", "GROWTH", "ENTERPRISE", "CUSTOM"],
+          "description": "Canonical pricing tier classification."
+        },
+        "baseMonthlyCents": {
+          "type": "integer",
+          "description": "Base monthly platform fee in USD cents."
+        },
+        "perSeatMonthlyCents": {
+          "type": "integer",
+          "description": "Monthly fee per licensed seat in USD cents."
+        },
+        "includedSeats": {
+          "type": "integer",
+          "description": "Number of seats included in the base platform fee."
+        },
+        "annualDiscountPct": {
+          "type": "integer",
+          "description": "Annual billing discount percentage (0-60)."
+        },
+        "apiCallsLimitK": {
+          "type": "integer",
+          "description": "Monthly API quota in thousands of calls."
+        },
+        "slaSupport": {
+          "type": "string",
+          "enum": ["STANDARD", "PRIORITY", "DEDICATED_24_7"],
+          "description": "Support SLA level."
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Whether the plan is currently offered to new B2B accounts."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when plan was created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when plan was last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "tierCode",
+        "baseMonthlyCents",
+        "perSeatMonthlyCents",
+        "includedSeats",
+        "annualDiscountPct",
+        "apiCallsLimitK",
+        "slaSupport",
+        "active",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "B2bAccount": {
+      "title": "B2bAccount",
+      "description": "A B2B enterprise client organization and active subscription contract.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated workspace owner UID."
+        },
+        "companyName": {
+          "type": "string",
+          "description": "B2B client company name (2-100 chars)."
+        },
+        "industry": {
+          "type": "string",
+          "description": "Client industry vertical (2-60 chars)."
+        },
+        "contactName": {
+          "type": "string",
+          "description": "Primary buyer or executive sponsor name (2-80 chars)."
+        },
+        "contactEmail": {
+          "type": "string",
+          "description": "Primary contact business email (3-120 chars)."
+        },
+        "planId": {
+          "type": "string",
+          "description": "Optional linked SaasPlan document ID."
+        },
+        "planName": {
+          "type": "string",
+          "description": "Snapshot name of the subscribed SaaS plan."
+        },
+        "tierCode": {
+          "type": "string",
+          "enum": ["STARTER", "GROWTH", "ENTERPRISE", "CUSTOM"],
+          "description": "Tier code for segmentation."
+        },
+        "billingCycle": {
+          "type": "string",
+          "enum": ["MONTHLY", "ANNUAL"],
+          "description": "Contract billing cadence."
+        },
+        "licensedSeats": {
+          "type": "integer",
+          "description": "Total purchased user seats."
+        },
+        "activeSeats": {
+          "type": "integer",
+          "description": "Currently provisioned active seats."
+        },
+        "mrrCents": {
+          "type": "integer",
+          "description": "Normalized Monthly Recurring Revenue in USD cents."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["TRIAL", "ACTIVE", "PAST_DUE", "CHURNED"],
+          "description": "Subscription lifecycle status."
+        },
+        "health": {
+          "type": "string",
+          "enum": ["HEALTHY", "EXPANDING", "AT_RISK"],
+          "description": "Customer success health indicator."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional account executive notes (0-500 chars)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when account was created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when account was last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "companyName",
+        "industry",
+        "contactName",
+        "contactEmail",
+        "planName",
+        "tierCode",
+        "billingCycle",
+        "licensedSeats",
+        "activeSeats",
+        "mrrCents",
+        "status",
+        "health",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SaasInvoice": {
+      "title": "SaasInvoice",
+      "description": "A B2B subscription invoice issued against a client account.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated workspace owner UID."
+        },
+        "accountId": {
+          "type": "string",
+          "description": "Parent B2bAccount document ID."
+        },
+        "companyName": {
+          "type": "string",
+          "description": "B2B client company name."
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "description": "Human-readable invoice reference (3-40 chars)."
+        },
+        "billingPeriod": {
+          "type": "string",
+          "description": "Billing period label (e.g., Nov 2026)."
+        },
+        "amountCents": {
+          "type": "integer",
+          "description": "Invoice total in USD cents."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["DRAFT", "SENT", "PAID", "OVERDUE", "VOID"],
+          "description": "Invoice settlement status."
+        },
+        "dueDateLabel": {
+          "type": "string",
+          "description": "Due date string (e.g., 2026-12-15)."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional invoice memo (0-300 chars)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when invoice was created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when invoice was last updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "accountId",
+        "companyName",
+        "invoiceNumber",
+        "billingPeriod",
+        "amountCents",
+        "status",
+        "dueDateLabel",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/plans/{planId}": {
+      "schema": {
+        "$ref": "#/entities/SaasPlan"
+      },
+      "description": "User-scoped B2B SaaS pricing tiers and plan definitions."
+    },
+    "/users/{userId}/accounts/{accountId}": {
+      "schema": {
+        "$ref": "#/entities/B2bAccount"
+      },
+      "description": "User-scoped B2B client organizations and subscription contracts."
+    },
+    "/users/{userId}/invoices/{invoiceId}": {
+      "schema": {
+        "$ref": "#/entities/SaasInvoice"
+      },
+      "description": "User-scoped B2B billing invoices linked to client accounts."
+    }
+  }
+}

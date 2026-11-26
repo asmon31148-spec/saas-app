@@ -1,0 +1,219 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Deny all access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HARDENED HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidTierCode(tier) {
+      return tier in ['STARTER', 'GROWTH', 'ENTERPRISE', 'CUSTOM'];
+    }
+
+    // --- ENTITY VALIDATION HELPERS ---
+    function isValidSaasPlan(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 60 &&
+             isValidTierCode(data.tierCode) &&
+             data.baseMonthlyCents is int && data.baseMonthlyCents >= 0 && data.baseMonthlyCents <= 100000000 &&
+             data.perSeatMonthlyCents is int && data.perSeatMonthlyCents >= 0 && data.perSeatMonthlyCents <= 10000000 &&
+             data.includedSeats is int && data.includedSeats >= 1 && data.includedSeats <= 10000 &&
+             data.annualDiscountPct is int && data.annualDiscountPct >= 0 && data.annualDiscountPct <= 60 &&
+             data.apiCallsLimitK is int && data.apiCallsLimitK >= 1 && data.apiCallsLimitK <= 1000000 &&
+             data.slaSupport in ['STANDARD', 'PRIORITY', 'DEDICATED_24_7'] &&
+             data.active is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidB2bAccount(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.companyName is string && data.companyName.size() >= 2 && data.companyName.size() <= 100 &&
+             data.industry is string && data.industry.size() >= 2 && data.industry.size() <= 60 &&
+             data.contactName is string && data.contactName.size() >= 2 && data.contactName.size() <= 80 &&
+             data.contactEmail is string && data.contactEmail.size() >= 3 && data.contactEmail.size() <= 120 &&
+             (!('planId' in data) || (data.planId is string && data.planId.size() <= 128)) &&
+             data.planName is string && data.planName.size() >= 1 && data.planName.size() <= 60 &&
+             isValidTierCode(data.tierCode) &&
+             data.billingCycle in ['MONTHLY', 'ANNUAL'] &&
+             data.licensedSeats is int && data.licensedSeats >= 1 && data.licensedSeats <= 100000 &&
+             data.activeSeats is int && data.activeSeats >= 0 && data.activeSeats <= 100000 &&
+             data.mrrCents is int && data.mrrCents >= 0 && data.mrrCents <= 500000000 &&
+             data.status in ['TRIAL', 'ACTIVE', 'PAST_DUE', 'CHURNED'] &&
+             data.health in ['HEALTHY', 'EXPANDING', 'AT_RISK'] &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 500)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidSaasInvoice(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             isValidId(data.accountId) &&
+             data.companyName is string && data.companyName.size() >= 2 && data.companyName.size() <= 100 &&
+             data.invoiceNumber is string && data.invoiceNumber.size() >= 3 && data.invoiceNumber.size() <= 40 &&
+             data.billingPeriod is string && data.billingPeriod.size() >= 2 && data.billingPeriod.size() <= 50 &&
+             data.amountCents is int && data.amountCents >= 0 && data.amountCents <= 500000000 &&
+             data.status in ['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'VOID'] &&
+             data.dueDateLabel is string && data.dueDateLabel.size() >= 4 && data.dueDateLabel.size() <= 30 &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 300)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // --- USER-SCOPED B2B SAAS COLLECTIONS ---
+    match /users/{userId} {
+
+      // 1. SaaS Pricing Plans
+      match /plans/{planId} {
+        allow get: if isOwner(userId) && isValidId(planId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(planId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll([
+                           'userId', 'name', 'tierCode', 'baseMonthlyCents',
+                           'perSeatMonthlyCents', 'includedSeats', 'annualDiscountPct',
+                           'apiCallsLimitK', 'slaSupport', 'active', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'name', 'tierCode', 'baseMonthlyCents',
+                           'perSeatMonthlyCents', 'includedSeats', 'annualDiscountPct',
+                           'apiCallsLimitK', 'slaSupport', 'active', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidSaasPlan(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(planId) &&
+                         isValidSaasPlan(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action: Edit Plan Details & Pricing
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'name', 'tierCode', 'baseMonthlyCents', 'perSeatMonthlyCents',
+                             'includedSeats', 'annualDiscountPct', 'apiCallsLimitK',
+                             'slaSupport', 'active', 'updatedAt'
+                           ]) ||
+                           // Action: Toggle Plan Active Status
+                           incoming().diff(existing()).affectedKeys().hasOnly(['active', 'updatedAt'])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(planId);
+      }
+
+      // 2. B2B Client Accounts
+      match /accounts/{accountId} {
+        allow get: if isOwner(userId) && isValidId(accountId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(accountId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll([
+                           'userId', 'companyName', 'industry', 'contactName',
+                           'contactEmail', 'planName', 'tierCode', 'billingCycle',
+                           'licensedSeats', 'activeSeats', 'mrrCents', 'status',
+                           'health', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'companyName', 'industry', 'contactName',
+                           'contactEmail', 'planId', 'planName', 'tierCode', 'billingCycle',
+                           'licensedSeats', 'activeSeats', 'mrrCents', 'status',
+                           'health', 'notes', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidB2bAccount(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(accountId) &&
+                         isValidB2bAccount(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action: Edit Account Profile & Contract Details
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'companyName', 'industry', 'contactName', 'contactEmail',
+                             'planId', 'planName', 'tierCode', 'billingCycle',
+                             'licensedSeats', 'activeSeats', 'mrrCents', 'status',
+                             'health', 'notes', 'updatedAt'
+                           ]) ||
+                           // Action: Adjust Seats & Subscription Tier
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'planId', 'planName', 'tierCode', 'billingCycle',
+                             'licensedSeats', 'activeSeats', 'mrrCents', 'updatedAt'
+                           ]) ||
+                           // Action: Update Lifecycle Status & Health
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'status', 'health', 'updatedAt'
+                           ])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(accountId);
+      }
+
+      // 3. B2B Billing Invoices
+      match /invoices/{invoiceId} {
+        allow get: if isOwner(userId) && isValidId(invoiceId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(invoiceId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll([
+                           'userId', 'accountId', 'companyName', 'invoiceNumber',
+                           'billingPeriod', 'amountCents', 'status', 'dueDateLabel',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'accountId', 'companyName', 'invoiceNumber',
+                           'billingPeriod', 'amountCents', 'status', 'dueDateLabel',
+                           'notes', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidSaasInvoice(incoming()) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/accounts/$(incoming().accountId));
+
+        // Terminal State Locking: PAID and VOID invoices cannot be mutated
+        allow update: if isOwner(userId) &&
+                         isValidId(invoiceId) &&
+                         !(existing().status in ['PAID', 'VOID']) &&
+                         isValidSaasInvoice(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().accountId == existing().accountId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action: Transition Invoice Status
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) ||
+                           // Action: Edit Draft/Open Invoice Details
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'billingPeriod', 'amountCents', 'dueDateLabel', 'notes', 'status', 'updatedAt'
+                           ])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(invoiceId);
+      }
+    }
+  }
+}

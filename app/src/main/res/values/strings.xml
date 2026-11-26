@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">StrataSaaS</string>
+    <string name="tagline_b2b">B2B SaaS Revenue &amp; Subscription OS</string>
+    <string name="auth_headline">Command Your B2B SaaS Engine</string>
+    <string name="auth_subhead">Manage recurring tiers, enterprise tenant seats, MRR billing, and unit economics in one cloud-synced workspace.</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="nav_command">Command</string>
+    <string name="nav_accounts">Accounts</string>
+    <string name="nav_model">SaaS Model</string>
+    <string name="nav_billing">Billing</string>
+    <string name="empty_accounts_title">No B2B Accounts Yet</string>
+    <string name="empty_accounts_desc">Add your first enterprise client or define SaaS pricing tiers to start tracking live MRR, seat utilization, and renewals.</string>
+    <string name="empty_plans_title">Define Your SaaS Pricing Model</string>
+    <string name="empty_plans_desc">Create Starter, Growth, or Enterprise tiers with base fees, per-seat pricing, and API quotas.</string>
+    <string name="empty_invoices_title">No Invoices Issued</string>
+    <string name="empty_invoices_desc">Generate recurring B2B invoices directly from your active client accounts to track collections.</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="retry">Retry</string>
+</resources>
